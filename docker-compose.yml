@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: restaurant_service
+    ports:
+      - "9000:9000"
+    volumes:
+      - .:/var/www
+    networks:
+      - restaurant_network
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=restaurant_db
+      - DB_USERNAME=user_restauran_usr
+      - DB_PASSWORD=user_restauran_pass
+
+  db:
+    image: mariadb:10.6
+    container_name: restaurant_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: restaurant_db
+      MYSQL_USER: user_restauran_usr
+      MYSQL_PASSWORD: user_restauran_pass
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - restaurant_network
+
+networks:
+  restaurant_network:
+    driver: bridge
+
+volumes:
+  db_data:

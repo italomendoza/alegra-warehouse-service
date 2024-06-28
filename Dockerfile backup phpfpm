@@ -1,0 +1,35 @@
+FROM php:8.2-fpm
+
+# Instala dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    git \
+    curl \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
+
+# Instala Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Crea el directorio de la aplicación
+WORKDIR /var/www
+
+# Copia el contenido del proyecto
+COPY . .
+
+# Instala las dependencias de PHP
+RUN composer install
+
+# Copia el script de inicio del contenedor
+COPY ./docker/start-container.sh /usr/local/bin/start-container.sh
+RUN chmod +x /usr/local/bin/start-container.sh
+
+# Exponer el puerto 9000 y definir el comando de inicio del contenedor
+EXPOSE 9000
+CMD ["php-fpm"]
