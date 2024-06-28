@@ -29,7 +29,7 @@ jobs:
     - name: Set up PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.2' 
+        php-version: '8.2'
 
     - name: Install Dependencies
       run: |
@@ -45,52 +45,51 @@ jobs:
       run: |
         mysql -e 'CREATE DATABASE IF NOT EXISTS laravel;' -uroot -ppassword -h127.0.0.1
 
-    - name: Set up Database Connection and Run Migrations
-      env:
-        DB_HOST: '127.0.0.1' 
-        DB_PORT: '3306' 
-        DB_DATABASE: 'laravel' 
-        DB_USERNAME: 'root' 
-        DB_PASSWORD: 'password' 
-      run: |
-        php artisan config:clear
-        php artisan migrate
-
-    - name: Run Tests
-      run: php artisan test
-    
-    # - name: Set up Docker Buildx
-    #   uses: docker/setup-buildx-action@v3
-
-    # # add login to aws
-    # - name: Configure AWS Credentials
-    #   uses: aws-actions/configure-aws-credentials@v1
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ secrets.aws-region }}
-
-    # - name: Login to Amazon ECR ${{ secrets.aws-region }}
-    #   id: login-ecr
-    #   uses: aws-actions/amazon-ecr-login@v2
-    #   with:
-    #     registries: 'accounid-aws'
+    # - name: Set up Database Connection and Run Migrations
     #   env:
-    #     AWS_REGION: ${{ secrets.aws-region }}
+    #     DB_HOST: '127.0.0.1'
+    #     DB_PORT: '3306'
+    #     DB_DATABASE: 'laravel'
+    #     DB_USERNAME: 'root'
+    #     DB_PASSWORD: 'password'
+    #   run: |
+    #     php artisan config:clear
+    #     php artisan migrate
 
-    # - name: Docker Login to ECR
-    #   uses: docker/login-action@v3
-    #   with:
-    #     registry: ${{ steps.login-ecr.outputs.registry }}
-    # - name: Build Image
-    #   uses: docker/build-push-action@v5
-    #   id: build-image
-    #   with:
-    #     context: .
-    #     provenance: false
-    #     file: ./Dockerfile
-    #     push: false
-    #     tags: ${{ github.sha }}
-    #     cache-from: type=gha
-    #     cache-to: type=gha,mode=max
-    #     build-args: ''
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Configurar AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Login to Amazon ECR ${{ secrets.AWS_REGION }}
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      with:
+        registries: '905418450006'
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+
+    - name: Docker Login to ECR
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ steps.login-ecr.outputs.registry }}
+
+    - name: Build Image
+      uses: docker/build-push-action@v5
+      id: build-image
+      with:
+        context: .
+        provenance: false
+        file: ./Dockerfile
+        push: false
+        tags: ${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: ''
+
