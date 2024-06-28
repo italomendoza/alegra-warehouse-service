@@ -53,6 +53,6 @@ class CheckPendingIngredients implements ShouldQueue
     private function notifyKitchen()
     {
         // Notify the kitchen service about the available ingredients
-        Http::post('http://kitchen-service/api/kitchen/retry-pending-orders');
+        Http::post('https://api-kitchen.oloi.dev/api/kitchen/retry-pending-orders');
     }
 }

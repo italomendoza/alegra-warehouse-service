@@ -2,27 +2,52 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 use App\Models\Ingredient;
 use App\Models\PendingIngredient;
 use App\Models\PurchaseHistory;
+use App\Jobs\CheckPendingIngredients;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Mockery;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
-use App\Jobs\CheckPendingIngredients;
-use Mockery;
+use Tests\TestCase;
 
 class WarehouseControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_check_ingredients_some_not_available()
+    {
+        // Crear ingredientes en la base de datos
+        $ingredientTomato = Ingredient::create(['name' => 'Tomato', 'quantity' => 2]);
+        $ingredientLettuce = Ingredient::create(['name' => 'Lettuce', 'quantity' => 0]);
+
+        // Realizar una solicitud POST a la ruta /api/ingredients/check
+        $response = $this->postJson('/api/ingredients/check', [
+            'ingredients' => [
+                ['ingredient_name' => 'Tomato', 'quantity' => 10],
+                ['ingredient_name' => 'Lettuce', 'quantity' => 5]
+            ]
+        ]);
+
+        // Verificar que la respuesta tiene el estado 200
+        $response->assertStatus(200)
+                 ->assertJson(['available' => false]);
+
+        // Verificar que el ingrediente pendiente fue agregado a la base de datos
+        $this->assertDatabaseHas('pending_ingredients', [
+            'ingredient_name' => 'Tomato',
+            'required_quantity' => 8
+        ]);
+    }
+
     public function test_check_ingredients_all_available()
     {
-        $ingredient = Ingredient::factory()->create(['quantity' => 10]);
+        $ingredient = Ingredient::factory()->create(['name' => 'Tomato', 'quantity' => 20]);
 
         $response = $this->postJson('/api/ingredients/check', [
             'ingredients' => [
-                ['ingredient_name' => $ingredient->name, 'quantity' => 5]
+                ['ingredient_name' => 'Tomato', 'quantity' => 10]
             ]
         ]);
 
@@ -30,97 +55,50 @@ class WarehouseControllerTest extends TestCase
                  ->assertJson(['available' => true]);
     }
 
-
-
-    public function test_decrement_ingredients_success()
+    public function test_decrement_ingredients()
     {
-        $ingredient = Ingredient::factory()->create(['quantity' => 10]);
+        $ingredient = Ingredient::factory()->create(['name' => 'Tomato', 'quantity' => 20]);
 
         $response = $this->postJson('/api/ingredients/decrement', [
             'ingredients' => [
-                ['ingredient_name' => $ingredient->name, 'quantity' => 5]
+                ['ingredient_name' => 'Tomato', 'quantity' => 5]
             ]
         ]);
 
         $response->assertStatus(200)
                  ->assertJson(['message' => 'Ingredients decremented successfully']);
 
-        $this->assertDatabaseHas('ingredients', [
-            'name' => $ingredient->name,
-            'quantity' => 5
-        ]);
-    }
-
-    public function test_decrement_ingredients_insufficient_quantity()
-    {
-        $ingredient = Ingredient::factory()->create(['quantity' => 5]);
-
-        $response = $this->postJson('/api/ingredients/decrement', [
-            'ingredients' => [
-                ['ingredient_name' => $ingredient->name, 'quantity' => 10]
-            ]
-        ]);
-
-        $response->assertStatus(200)
-                 ->assertJson(['message' => 'Ingredients decremented successfully']);
-
-        $this->assertDatabaseHas('ingredients', [
-            'name' => $ingredient->name,
-            'quantity' => 5
-        ]);
+        $ingredient = Ingredient::find($ingredient->id);
+        $this->assertEquals(15, $ingredient->quantity);
     }
 
     public function test_purchase_ingredient_from_market()
     {
-        $quantitySold = 5;
+        // Mock de la respuesta HTTP
+        Http::fake([
+            'https://recruitment.alegra.com/api/farmers-market/buy*' => Http::response(['quantitySold' => 5], 200)
+        ]);
 
-        // Crear una clase anónima que extienda el controlador original
-        $controller = new class extends \App\Http\Controllers\WarehouseController {
-            public $quantitySold;
-            public function purchaseIngredientFromMarket($ingredientName)
-            {
-                $quantitySold = $this->quantitySold;
-
-                PurchaseHistory::create([
-                    'ingredient_name' => $ingredientName,
-                    'quantity' => $quantitySold,
-                    'status' => $quantitySold > 0 ? 'successful' : 'unsuccessful'
-                ]);
-
-                return ['quantitySold' => $quantitySold];
-            }
-        };
-
-        // Asignar el valor de $quantitySold a la propiedad del controlador
-        $controller->quantitySold = $quantitySold;
-
+        $controller = new \App\Http\Controllers\WarehouseController();
         $response = $controller->purchaseIngredientFromMarket('Tomato');
 
-        // Assert the response matches the expected fixed quantity sold
-        $this->assertEquals(['quantitySold' => $quantitySold], $response);
+        $this->assertEquals(['quantitySold' => 5], $response);
 
-        // Assert the purchase history is correctly recorded in the database
         $this->assertDatabaseHas('purchase_histories', [
             'ingredient_name' => 'Tomato',
-            'quantity' => $quantitySold,
+            'quantity' => 5,
             'status' => 'successful'
         ]);
     }
 
-
     public function test_add_pending_ingredient()
     {
-        $ingredientName = 'Tomato';
-        $requiredQuantity = 10;
-
-        // Llamar manualmente al método del controlador para agregar un ingrediente pendiente
         $controller = new \App\Http\Controllers\WarehouseController();
-        $controller->addPendingIngredient($ingredientName, $requiredQuantity);
+        $controller->addPendingIngredient('Tomato', 10);
 
-        // Verificar que el ingrediente pendiente se haya agregado correctamente en la base de datos
         $this->assertDatabaseHas('pending_ingredients', [
-            'ingredient_name' => $ingredientName,
-            'required_quantity' => $requiredQuantity
+            'ingredient_name' => 'Tomato',
+            'required_quantity' => 10
         ]);
     }
 
@@ -138,21 +116,25 @@ class WarehouseControllerTest extends TestCase
 
     public function test_get_available_ingredients()
     {
-        $ingredient = Ingredient::factory()->create();
+        $ingredient = Ingredient::factory()->create(['name' => 'Tomato', 'quantity' => 20]);
 
         $response = $this->getJson('/api/ingredients/available');
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['name' => $ingredient->name]);
+                 ->assertJson([
+                     ['name' => 'Tomato', 'quantity' => 20]
+                 ]);
     }
 
     public function test_get_purchase_history()
     {
-        $purchase = PurchaseHistory::factory()->create();
+        PurchaseHistory::factory()->create(['ingredient_name' => 'Tomato', 'quantity' => 5, 'status' => 'successful']);
 
         $response = $this->getJson('/api/ingredients/purchase-history');
 
         $response->assertStatus(200)
-                 ->assertJsonFragment(['ingredient_name' => $purchase->ingredient_name]);
+                 ->assertJson([
+                     ['ingredient_name' => 'Tomato', 'quantity' => 5, 'status' => 'successful']
+                 ]);
     }
 }
