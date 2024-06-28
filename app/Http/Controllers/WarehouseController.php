@@ -73,12 +73,10 @@ class WarehouseController extends Controller
 
     public function purchaseIngredientFromMarket($ingredientName)
     {
-        // no se detalla el proceso de autenticacion para el consumo del api//
-        $response = Http::post('https://recruitment.alegra.com/api/farmers-market/buy', [
+        $response = Http::get('https://recruitment.alegra.com/api/farmers-market/buy', [
             'ingredient' => $ingredientName
         ]);
-        // $quantitySold = $response->json()['quantitySold'] ?? 0;
-        $quantitySold = random_int(0, 10);
+        $quantitySold = $response->json()['quantitySold'] ?? 0;
 
         // registrer purchase history
         PurchaseHistory::create([
