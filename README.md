@@ -5,6 +5,8 @@ El microservicio `warehouse` se encarga de gestionar el inventario y las órdene
 
 ## Diagrama de arquitectura en aws
 - https://lucid.app/lucidchart/966c3239-3d04-4339-a634-1e8744124fde/edit?viewport_loc=-1560%2C-734%2C2781%2C1558%2C0_0&invitationId=inv_a8695cc3-978c-401c-952a-07a3a12262ac
+![Reto Alegra Cloud Architecture](https://github.com/italomendoza/alegra-warehouse-service/assets/56613885/4d799a18-95ad-4ded-a8e3-8bb0e20e06a3)
+
 
 ## Requisitos Previos
 - Docker
