@@ -2,7 +2,7 @@ name: Laravel CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ develop ]
 
 
 jobs:

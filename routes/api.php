@@ -24,3 +24,17 @@ Route::post('/ingredients/replenish', [WarehouseController::class, 'replenishIng
 Route::get('/ingredients/available', [WarehouseController::class, 'getAvailableIngredients']);
 Route::get('/ingredients/purchase-history', [WarehouseController::class, 'getPurchaseHistory']);
 Route::post('/ingredients/run-job', [WarehouseController::class, 'runJob']);
+use App\Services\RabbitMQService;
+
+Route::get('/test-rabbitmq', function () {
+    try {
+        $rabbitmq = new RabbitMQService();
+
+        // Envía un mensaje de prueba
+        $rabbitmq->sendMessage('test_queue', ['message' => 'Hello RabbitMQ!']);
+
+        return response()->json(['message' => 'Message sent to RabbitMQ']);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
